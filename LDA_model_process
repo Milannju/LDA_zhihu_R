@@ -1,0 +1,79 @@
+fold_num = 5
+kv_n= c(5*c(1:10))  
+seed_num = 2003  
+
+answers_final <- read_excel("~/Desktop/Graduation Thesis /data processing R/LDA R processing/answers_final.xlsx")
+dtm=text2dtm(answers_final$content)
+
+sp=smp(n=nrow(dtm),seed=seed_num)  
+system.time((ctmK_f=selectK(dtm=dtm,kv=kv_n,SEED=seed_num,cross=fold_num,sp=sp)))
+per_plot(ctmK_f,kv_n)
+ #get the top ten terms in each topic
+
+model = LDA(dtm, k = 20, method = "Gibbs",  
+            control = list(seed = seed_num, burnin = 1000,thin = 100, iter = 1000))  
+get_terms(model,10)
+
+#=========================word cloud==================
+word_cloud=function(i,LDAmodel,size)
+{
+  topic=exp(LDAmodel@beta[i,])
+  names(topic)=LDAmodel@terms
+  vs=sort(topic,decreasing = TRUE)
+  v <- vs[1:size]
+  d <- data.frame(word = names(v),freq=v)
+  wordcloud(words = names(v),freq = v)
+}
+word_cloud(1,model,100)
+
+
+
+
+#a lot of warnings
+#===================caculate the intensity of topic in time series======
+doc_topic=model@gamma
+time_list=answers_final$time
+time_list=as.character(time_list)
+for(i in 1:length(time_list))
+{
+  time_list[i]=substr(time_list[i],1,7)[[1]]
+}
+doc_list=text2doclist(answers_final$content)#calculate the number of words in documents
+doc_num=c()#the number of words in doc
+for(n in 1:length(doc_list))
+{
+  doc_num[n]=length(unlist(doc_list[n]))
+}
+doc_topic_p=matrix(nrow = 430,ncol = 20)#calculate the product of topic intensity and terms number
+for(i in 1:430)
+{
+  for(j in 1:20)
+  {
+    doc_topic_p[i,j]=doc_topic[i,j]*doc_num[i]
+  }
+}
+doc_topic_final=cbind(doc_num,time_list,doc_topic_p)
+as.nu
+library(xlsx)
+write.xlsx(doc_topic_final,"doc_topic.xlsx")
+
+#===================topic_terms to excel ===========
+library(xlsx)
+tt=get_terms(model,10)
+write.xlsx(tt,"topic_terms.xlsx")
+#===================calculate the similarity========
+model_gamma=model@gamma
+pearson=matrix(nrow = 20,ncol = 20)
+for(i in 1:20)
+{
+  for(j in 1:20)
+  {
+    pearson[i,j]=cor(model_gamma[,i],model_gamma[,j])
+  }
+}
+#====================calcualte the intensity======
+topic_intense=c()
+for(z in 1:20)
+{
+  topic_intense[z]=sum(model_gamma[,z])
+}
